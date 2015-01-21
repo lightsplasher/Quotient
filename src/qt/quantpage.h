@@ -40,7 +40,7 @@ private slots:
 private:
     Ui::QuantPage *ui;
     QNetworkAccessManager *networkManager;
-    QTimer updateTimer;
+    QTimer updateTimer();
     void updateOrderBook();
 };
 
