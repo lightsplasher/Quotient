@@ -3,6 +3,7 @@
 
 #include <QSortFilterProxyModel>
 #include <QDateTime>
+#include <inttypes.h>
 
 /** Filter the transaction list according to pre-specified rules. */
 class TransactionFilterProxy : public QSortFilterProxyModel
@@ -35,6 +36,9 @@ public:
     void setShowInactive(bool showInactive);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
+
+    int64_t getTotalAmount() const { return totalAmount; }
+
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
 
@@ -46,6 +50,7 @@ private:
     qint64 minAmount;
     int limitRows;
     bool showInactive;
+    mutable int64_t totalAmount;
 
 signals:
 
