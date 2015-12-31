@@ -29,12 +29,9 @@ public:
 
 private slots:
     virtual void updateTimer_timeout();
-    void eeHistoryReplyFinished();
-    void eeMktDataReplyFinished();
     void trexHistoryReplyFinished();
     void trexMktDataReplyFinished();
     void trexMktHistoryReplyFinished();
-    void eeMktHistoryReplyFinished();
     void on_refreshNowButton_clicked();
 
 private:
