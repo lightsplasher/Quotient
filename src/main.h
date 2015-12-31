@@ -51,7 +51,7 @@ static const int64_t MIN_TX_FEE = 1000;
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const int64_t MAX_MONEY = 1618033 * 2 * COIN; // include overhead for stake interest
 static const int64_t COIN_YEAR_REWARD = 1618 * CENT; // 1,618% per year
-
+static const int64_t MAX_SPLIT_AMOUNT = 5000 * COIN; 
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
