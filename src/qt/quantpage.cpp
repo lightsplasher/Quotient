@@ -352,18 +352,6 @@ void QuantPage::updateMarketData()
     priceData.clear();
     volumeData.clear();
 
-    QUrl urlD("https://api.empoex.com/marketinfo/XQN-BTC");
-    QNetworkRequest requestD;
-    requestD.setUrl(urlD);
-    QNetworkReply* currentReplyD = networkManager->get(requestD);
-    connect(currentReplyD, SIGNAL(finished()), this, SLOT(eeMktDataReplyFinished()));
-
-    // get order book from empo ex api
-    QUrl url("https://api.empoex.com/orderbook/XQN-BTC");
-    QNetworkRequest request;
-    request.setUrl(url);
-    QNetworkReply* currentReply = networkManager->get(request);
-    connect(currentReply, SIGNAL(finished()), this, SLOT(eeHistoryReplyFinished()));
 
     //https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-ltc
     QUrl urlBD("https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-xqn");
@@ -386,14 +374,6 @@ void QuantPage::updateMarketData()
     requestBH.setUrl(urlBH);
     QNetworkReply* currentReplyBH = networkManager->get(requestBH);
     connect(currentReplyBH, SIGNAL(finished()), this, SLOT(trexMktHistoryReplyFinished()));
-
-   // get empox market history for chart
-   // https://api.empoex.com/markethistory/XQN-BTC
-    QUrl urlEH("https://api.empoex.com/markethistory/XQN-BTC");
-    QNetworkRequest requestEH;
-    requestEH.setUrl(urlEH);
-    QNetworkReply* currentReplyEH = networkManager->get(requestEH);
-    connect(currentReplyEH, SIGNAL(finished()), this, SLOT(eeMktHistoryReplyFinished()));
 
 }
 
@@ -459,66 +439,6 @@ void QuantPage::trexMktDataReplyFinished()
             trexLastPrice = last;
         }
     }
-}
-
-void QuantPage::eeMktHistoryReplyFinished()
-{
-    if(fShutdown)
-	return;
-
-    //qDebug() << "eeMktHistoryReplyFinished()";
-    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-    if (reply->error() !=0)
-    {
-        if (reply->error() == 1 )
-        {
-            //QMessageBox::critical(this, "Quant Connection Problem", "EmpoEx Connection Refused");
-	    ui->errorLabel->setText("EmpoEx Connection Refused");
-            return;
-        }
-    else
-    {
-        //QMessageBox::critical(this, "Quant Connection Problem (EmpoEx API Market History)", reply->errorString());
-	qDebug() << reply->errorString();
-	ui->errorLabel->setText("EmpoEx: " + reply->errorString());
-        return;
-    }
-    }
-
-    QString data = (QString) reply->readAll();
-    QScriptEngine engine;
-    QScriptValue result = engine.evaluate("value = " + data);
-    QScriptValueIterator it(result.property("XQN-BTC"));
-    LOCK(cs_markets);
-    while(it.hasNext())
-    {
-        it.next();
-        QScriptValue entry = it.value();
-//{"XQN-BTC":[{"type":"Buy","date":1415845314,"amount":"142.80000000","price":"0.00002400","total":"0.00342720"},
-        QString type = entry.property("type").toString();
-	if(type != "")
-	{
-  	    QString rawDate = entry.property("date").toString();
-	    qint32 intDate = entry.property("date").toInt32();
-            QDateTime dt;
-	    dt.setTime_t(intDate);
-	    qsreal price = COIN * entry.property("price").toNumber();
-	    qsreal vol = entry.property("amount").toNumber();
-
-	    if(type == "Sell")
-		vol = vol * -1;
-
-            QDateTime dtNow = QDateTime::currentDateTimeUtc();
-	    if(dt >= dtNow.addDays(-7))
-	    {
-	        timeData.append(dt.toTime_t());
-	        priceData.append(price);
-	        volumeData.append(vol);
-	    }
-        }
-    }
-
-    updateChart();
 }
 
 void QuantPage::trexMktHistoryReplyFinished()
@@ -654,145 +574,6 @@ void QuantPage::trexHistoryReplyFinished()
 	}
     }
 
-    updateOrderBook();
-}
-
-void QuantPage::eeMktDataReplyFinished()
-{ 
-    if(fShutdown)
-	return;
-
-    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-    if (reply->error() !=0)
-    {
-        if (reply->error() == 1 )
-        {
-            //QMessageBox::critical(this, "Quant Connection Problem", "EmpoEx Connection Refused");
-	    ui->errorLabel->setText("EmpoEx Connection Refused");
-            return;
-        }
-    else
-    {
-        //QMessageBox::critical(this, "Quant Connection Problem (Empo Ex API Market Data)", reply->errorString());
-	ui->errorLabel->setText("EmpoEx: " + reply->errorString());
-        return;
-    }
-    }
-
-    QString data = (QString) reply->readAll();
-    QScriptEngine engine;
-    QScriptValue result = engine.evaluate("value = " + data);
-    QScriptValueIterator it(result);
-
-//[{"pairname":"XQN-BTC","last":"0.00002400","base_volume_24hr":"0.60486204","low":"0.00000989","high":"0.00002750","bid":"0.00001990",
-//"ask":"0.00002400","open_buy_volume":"87,138.42828095","open_sell_volume":"5,642.11820899",
-//"open_buy_volume_base":"0.25689740","open_sell_volume_base":"0.16165537","change":"+9.14%"}]
-    while (it.hasNext()) {
-        it.next();
-        QScriptValue entry = it.value();
-	QString pairname = entry.property("pairname").toString();
-
-	if(pairname == "XQN-BTC")
-	{
-            QString change = entry.property("change").toString();
-	    QString last = QString::number(entry.property("last").toNumber(), 'f', 8);
-            QString volume = QString::number(entry.property("base_volume_24hr").toNumber(), 'f', 8);
-            QString low = QString::number(entry.property("low").toNumber(), 'f', 8);
-            QString high = QString::number(entry.property("high").toNumber(), 'f', 8);
-            QString bid = QString::number(entry.property("bid").toNumber(), 'f', 8);
-            QString ask = QString::number(entry.property("ask").toNumber(), 'f', 8);
-
-	    if(change.startsWith("-"))
-	    {
-	        ui->lastPriceLabel->setObjectName("lastPriceLabel");
-		ui->lastPriceLabel->setStyleSheet("#lastPriceLabel { color: #FF0000; background-color:#000000; }");
-		ui->lastPriceLabel->setText("E: " + last);
-	    }
-	    else
-	    {
-	        ui->lastPriceLabel->setObjectName("lastPriceLabel");
-		ui->lastPriceLabel->setStyleSheet("#lastPriceLabel { color: #00FF00; background-color:#000000; }");
-		ui->lastPriceLabel->setText("E: " + last);
-	    }
-
-	}
-    }
-
-}
-
-void QuantPage::eeHistoryReplyFinished()
-{
-    if(fShutdown)
-	return;
-
-    // get the market history, split into bids and asks, and update the tables and last price
-
-    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-    if (reply->error() !=0)
-    {
-        if (reply->error() == 1 )
-        {
-            //QMessageBox::critical(this, "Quant Connection Problem", "EmpoEx Connection Refused");
-	    ui->errorLabel->setText("EmpoEx Connection Refused");
-            return;
-        }
-    else
-    {
-        //QMessageBox::critical(this, "Quant Connection Problem (EmpoEx API Order Book)", reply->errorString());
-        ui->errorLabel->setText("EmpoEx: " + reply->errorString());
-        return;
-    }
-    }
-
-    //qDebug() << "eeHistoryReplyFinished()";
-    QString data = (QString) reply->readAll();
-    QScriptEngine engine;
-    QScriptValue result = engine.evaluate("value = " + data);
-   
-    // {"XQN-BTC":[{"type":"Buy","date":1415845314,"amount":"142.80000000","price":"0.00002400","total":"0.00342720"},{"type":"Buy","date":1415845120,"amount":"202.98107194","price":"0.00002199","total":"0.00446355"},
-
-    QScriptValue entries = result.property("XQN-BTC");
-
-    LOCK(cs_markets);
-    QScriptValue sellEntries = entries.property("sell");
-    QScriptValueIterator itSell(sellEntries);
-    while(itSell.hasNext()) {
-	itSell.next();
-	QScriptValue entry = itSell.value();
-	qsreal qty = entry.property("amount").toNumber();
-	qsreal rate = entry.property("price").toNumber();
-	if(!QString::number(qty, 'f', 8).startsWith("0"))
-	{
-            if(mapSells.find(rate) != mapSells.end())
-            {
-	        mapSells[rate] += qty;
-            }
-	    else
-	    {
-	        mapSells.insert(make_pair(rate, qty));
-	    }
-        }
-    }
-
-    QScriptValue buyEntries = entries.property("buy");
-    QScriptValueIterator itBuy(buyEntries);
-    while(itBuy.hasNext()) {
-	itBuy.next();
-	QScriptValue entry = itBuy.value();
-	qsreal qty = entry.property("amount").toNumber();
-	qsreal rate = entry.property("price").toNumber();
-	if(!QString::number(qty, 'f', 8).startsWith("0"))
-	{
-            if(mapBuys.find(rate) != mapBuys.end())
-            {
-	        mapBuys[rate] += qty;
-            }
-	    else
-	    {
-	        mapBuys.insert(make_pair(rate, qty));
-	    }
-        }        
-    } 
     updateOrderBook();
 }
 
